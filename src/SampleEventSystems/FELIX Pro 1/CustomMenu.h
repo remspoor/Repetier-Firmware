@@ -64,6 +64,7 @@ UI_STICKYMENU(ui_exy3,UI_EXY3_ITEMS,5)
 
 UI_MENU_ACTIONCOMMAND_T(ui_calex,UI_CTEXT_CALIBRATE_EXTRUDERS_ID,UI_ACTION_CALEX)
 UI_MENU_ACTIONCOMMAND_T(ui_calex_xy,UI_CTEXT_CALIBRATE_XY_ID,UI_ACTION_CALEX_XY)
+UI_MENU_ACTIONCOMMAND(ui_calex_xyv2,"Calibrate XY w. Card",UI_ACTION_EXTRXY_V2)
 //added by FELIX
 //====================
 #ifdef TEC4
@@ -75,8 +76,8 @@ UI_MENU_ACTIONCOMMAND_T(ui_calex_z,UI_CTEXT_CALIBRATE_Z_ID,UI_ACTION_CALEX_Z)
 #define UI_CALEXTR_SUBITEMS {&ui_menu_back, &ui_calex_xy}
 UI_MENU(ui_calextr_sub,UI_CALEXTR_SUBITEMS,2)
 #else
-#define UI_CALEXTR_SUBITEMS {&ui_menu_back, &ui_calex_xy,&ui_calex_z}
-UI_MENU(ui_calextr_sub,UI_CALEXTR_SUBITEMS,3)
+#define UI_CALEXTR_SUBITEMS {&ui_menu_back, &ui_calex_z, &ui_calex_xy, &ui_calex_xyv2}
+UI_MENU(ui_calextr_sub,UI_CALEXTR_SUBITEMS,4)
 #endif
 //====================
 //added by FELIX
@@ -92,6 +93,13 @@ UI_MENU_ACTIONCOMMAND_T(ui_preheatcool2,UI_CTEXT_PREHEATCOOL2_ID,UI_ACTION_PRECO
 UI_MENU_ACTIONCOMMAND_T(ui_removebed,UI_CTEXT_REMOVEBED_ID,UI_ACTION_REMOVEBED)
 
 UI_WIZARD4_T(cui_msg_measuring, UI_ACTION_STATE,UI_TEXT_EMPTY_ID, UI_TEXT_MEASURING_ID, UI_TEXT_EMPTY_ID, UI_TEXT_PLEASE_WAIT_ID)
+UI_WIZARD4(cui_msg_ext_xy_1, UI_ACTION_EXTRXY_V2_1,"Place card at the", "marked spot.", "", "     >>> OK <<<")
+UI_WIZARD4(cui_msg_ext_xy_error, UI_ACTION_MESSAGE,"Calibration failed", "", "", "     >>> OK <<<")
+UI_WIZARD4(cui_msg_ext_xy_success, UI_ACTION_MESSAGE,"Extruder Offset", "Calibration Finished.", "", "     >>> OK <<<")
+UI_WIZARD4(cui_msg_ext_xy_info, UI_ACTION_STATE,"XY Offset Calibration", "   Measuring ...", "", "   Please wait")
+UI_WIZARD4(cui_msg_autolevel_failed, UI_ACTION_MESSAGE,"Autoleveling failed", "Plate is not leveled!", "", "     >>> OK <<<")
+UI_WIZARD4(cui_msg_exzautolevel_failed, UI_ACTION_MESSAGE,"Autoleveling failed", "Extruder offsets", " not leveled!", "     >>> OK <<<")
+
 #ifndef TEC4
 UI_WIZARD4(cui_msg_preparing, UI_ACTION_STATE,"", "   Preparing ...", "", "   Please wait")
 #else
@@ -99,7 +107,7 @@ UI_WIZARD4(cui_msg_preparing, UI_ACTION_STATE,"", "   Warming up...", "", "   Pl
 #endif              
 UI_WIZARD4(cui_calib_zprobe_info, UI_ACTION_CZREFH_INFO, "   Place the Felix","   calibration card"," between the Nozzle","   and Build PLT.")
 UI_WIZARD4(cui_calib_zprobe, UI_ACTION_CZREFH, "  Rotate the button","   until you feel","   slight friction","    on the card.")
-UI_WIZARD4(cui_calib_zprobe_succ, UI_ACTION_CZREFH_SUCC, "     Build PLT."," Levelled Correctly","","     >>> OK <<<")
+UI_WIZARD4(cui_calib_zprobe_succ, UI_ACTION_CZREFH_SUCC, "     Build PLT."," Leveled Correctly","","     >>> OK <<<")
 UI_WIZARD4(cui_calib_zprobe_dist, UI_ACTION_STATE, "", "   now measuring", "    buildsurface", "")
 UI_MENU_HEADLINE(ui_halfw," Max. 15" cDEG)
 UI_MENU_HEADLINE(ui_halfa," Turn back: %bb")
@@ -112,6 +120,7 @@ UI_STICKYMENU(ui_half_show,UI_HALF_ITEMS,5)
 
 
 // Define precision for temperatures. With small displays only integer values fit.
+#undef UI_TEMP_PRECISION
 #define UI_TEMP_PRECISION 0
 
 // Define precision for temperatures. With small displays only integer values fit.
@@ -946,6 +955,7 @@ UI_MENU(ui_menu_chf, UI_MENU_CF1 , 3+UI_MENU_BACKCNT)
 // Change filament level 2 - material selection
 
 UI_MENU_ACTIONCOMMAND_T(ui_menu_ch2_back, UI_TEXT_BACK_ID, UI_ACTION_FC_BACK1)
+UI_MENU_ACTIONCOMMAND(ui_menu_ch2_current,"Current: %eIc" cDEG "C",UI_ACTION_WIZARD_FILAMENTCHANGE)
 UI_MENU_ACTIONCOMMAND(ui_menu_ch2_pla,"PLA",UI_ACTION_FC_PLA)
 UI_MENU_ACTIONCOMMAND(ui_menu_ch2_petg,"PETG",UI_ACTION_FC_PETG)
 UI_MENU_ACTIONCOMMAND(ui_menu_ch2_pva,"PVA",UI_ACTION_FC_PVA)
@@ -955,9 +965,9 @@ UI_MENU_ACTIONCOMMAND(ui_menu_ch2_glass,"GLASS",UI_ACTION_FC_GLASS)
 UI_MENU_ACTIONCOMMAND(ui_menu_ch2_wood,"WOOD",UI_ACTION_FC_WOOD)
 UI_MENU_ACTIONCOMMAND_T(ui_menu_ch2_custom,UI_TEXT_CUSTOM_ID,UI_ACTION_FC_CUSTOM)
 #define UI_MENU_CH2_ITEMS {&ui_menu_chf_head,&ui_menu_ch2_back,\
-&ui_menu_ch2_pla,&ui_menu_ch2_petg,&ui_menu_ch2_pva,&ui_menu_ch2_flex,&ui_menu_ch2_abs,&ui_menu_ch2_glass,&ui_menu_ch2_wood,\
+&ui_menu_ch2_current,&ui_menu_ch2_pla,&ui_menu_ch2_petg,&ui_menu_ch2_pva,&ui_menu_ch2_flex,&ui_menu_ch2_abs,&ui_menu_ch2_glass,&ui_menu_ch2_wood,\
 &ui_menu_ch2_custom}
-UI_MENU(ui_menu_ch2,UI_MENU_CH2_ITEMS,10) 
+UI_MENU(ui_menu_ch2,UI_MENU_CH2_ITEMS,11) 
 
 // Change filament - custom temperature
 
@@ -1019,12 +1029,12 @@ UI_MENU_SUBMENU_FILTER_T(ui_menu_quick_changefil_printing,UI_TEXT_CHANGE_FILAMEN
 UI_MENU_SUBMENU_FILTER_T(ui_menu_move, UI_TEXT_POSITION_ID, ui_menu_positions,0,MENU_MODE_PRINTING)
 #if NUM_EXTRUDER > 1
 #define UI_MENU_QUICK {UI_MENU_ADDCONDBACK &ui_preheatcool2,&ui_removebed UI_CHANGE_FIL_ENT ,&ui_menu_autolevelbed UI_CALIB_PROBE_ENTRY, &ui_calex ,&ui_menu_move \
-      , &ui_menu_quick_stopstepper, &ui_menu_ext_temp0,&ui_menu_ext_temp1,&ui_menu_bed_temp}
+      , &ui_menu_quick_stopstepper UI_FANSPEED, &ui_menu_ext_temp0,&ui_menu_ext_temp1,&ui_menu_bed_temp}
 #else
 #define UI_MENU_QUICK {UI_MENU_ADDCONDBACK &ui_preheatcool1,&ui_removebed UI_CHANGE_FIL_ENT ,&ui_menu_autolevelbed UI_CALIB_PROBE_ENTRY, &ui_calex ,&ui_menu_move \
-      , &ui_menu_quick_stopstepper, &ui_menu_ext_temp0,&ui_menu_ext_temp1,&ui_menu_bed_temp}
+      , &ui_menu_quick_stopstepper UI_FANSPEED, &ui_menu_ext_temp0,&ui_menu_ext_temp1,&ui_menu_bed_temp}
 #endif      
-UI_MENU(ui_menu_quick, UI_MENU_QUICK, 9 + UI_MENU_BACKCNT + UI_CHANGE_FIL_CNT+ UI_CALIB_PROBE_COUNT)
+UI_MENU(ui_menu_quick, UI_MENU_QUICK, 10 + UI_MENU_BACKCNT + UI_CHANGE_FIL_CNT+ UI_CALIB_PROBE_COUNT)
 
 UI_MENU_HEADLINE_T(ui_menu_askstop_head, UI_TEXT_STOP_PRINT_ID)
 UI_MENU_ACTIONCOMMAND_T(ui_menu_sd_askstop_no, UI_TEXT_NO_ID, UI_ACTION_BACK)
@@ -1231,8 +1241,9 @@ UI_MENU_SUBMENU_T(ui_menu_conf_bed,    UI_TEXT_HEATING_BED_ID,  ui_menu_bedconf)
 #if EEPROM_MODE!=0
 UI_MENU_ACTIONCOMMAND_T(ui_menu_conf_to_eeprom, UI_TEXT_STORE_TO_EEPROM_ID, UI_ACTION_STORE_EEPROM)
 UI_MENU_ACTIONCOMMAND_T(ui_menu_conf_from_eeprom, UI_TEXT_LOAD_EEPROM_ID, UI_ACTION_LOAD_EEPROM)
-#define UI_MENU_EEPROM_COND ,&ui_menu_conf_to_eeprom,&ui_menu_conf_from_eeprom
-#define UI_MENU_EEPROM_CNT 2
+UI_MENU_ACTIONCOMMAND(ui_menu_conf_reset_eeeprom, "Reset EEPROM", UI_ACTION_RESET_EEPROM)
+#define UI_MENU_EEPROM_COND ,&ui_menu_conf_to_eeprom,&ui_menu_conf_from_eeprom, &ui_menu_conf_reset_eeeprom
+#define UI_MENU_EEPROM_CNT 3
 UI_MENU_ACTION2_T(ui_menu_eeprom_saved,  UI_ACTION_DUMMY, UI_TEXT_EEPROM_STOREDA_ID, UI_TEXT_EEPROM_STOREDB_ID)
 UI_MENU_ACTION2_T(ui_menu_eeprom_loaded, UI_ACTION_DUMMY, UI_TEXT_EEPROM_LOADEDA_ID, UI_TEXT_EEPROM_LOADEDB_ID)
 #else

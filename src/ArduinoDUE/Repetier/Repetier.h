@@ -25,7 +25,7 @@
 #include <math.h>
 #include <stdint.h>
 //#define REPETIER_VERSION "0.92.10"
-#define REPETIER_VERSION "1.0.0dev"
+#define REPETIER_VERSION "1.0.2"
 
 // Use new communication model for multiple channels - only until stable, then old version gets deleted
 #define NEW_COMMUNICATION 1
@@ -93,9 +93,9 @@ usage or for searching for memory induced errors. Switch it off for production, 
 #define WIZARD_STACK_SIZE 8
 #define IGNORE_COORDINATE 999999
 
-#define IS_MAC_TRUE(x) (defined(x) && x!=0)
-#define IS_MAC_FALSE(x) (!defined(x) || x==0)
-#define HAS_PIN(x) (defined(x) && x > -1)
+#define IS_MAC_TRUE(x) (x!=0)
+#define IS_MAC_FALSE(x) (x==0)
+#define HAS_PIN(x) (defined( x ## _PIN) && x > -1)
 
 // Uncomment if no analyzer is connected
 //#define ANALYZER
@@ -344,6 +344,20 @@ inline void memcopy4(void *dest,void *source) {
 #define MULTI_ZENDSTOP_ALL 3
 #else
 #define MULTI_ZENDSTOP_HOMING 0
+#endif
+
+#if (X_HOME_DIR < 0 && HAS_PIN(X2_MIN) && MIN_HARDWARE_ENDSTOP_X2) || (X_HOME_DIR > 0 && HAS_PIN(X2_MAX) && MAX_HARDWARE_ENDSTOP_X2)
+#define MULTI_XENDSTOP_HOMING 1
+#define MULTI_XENDSTOP_ALL 3
+#else
+#define MULTI_XENDSTOP_HOMING 0
+#endif
+
+#if (Y_HOME_DIR < 0 && HAS_PIN(Y2_MIN) && MIN_HARDWARE_ENDSTOP_Y2) || (Y_HOME_DIR > 0 && HAS_PIN(Y2_MAX) && MAX_HARDWARE_ENDSTOP_Y2)
+#define MULTI_YENDSTOP_HOMING 1
+#define MULTI_YENDSTOP_ALL 3
+#else
+#define MULTI_YENDSTOP_HOMING 0
 #endif
 
 #define SPEED_MIN_MILLIS 400
@@ -606,7 +620,7 @@ inline void memcopy4(void *dest,void *source) {
 #endif
 
 #if SDSUPPORT
-#include "SdFat.h"
+#include "src/SdFat/SdFat.h"
 #endif
 
 #include "gcode.h"
@@ -893,12 +907,12 @@ extern const uint8 osAnalogInputChannels[] PROGMEM;
 #if ANALOG_INPUTS > 0
 extern volatile uint osAnalogInputValues[ANALOG_INPUTS];
 #endif
-#define PWM_HEATED_BED NUM_EXTRUDER
-#define PWM_BOARD_FAN PWM_HEATED_BED+1
-#define PWM_FAN1 PWM_BOARD_FAN+1
-#define PWM_FAN2 PWM_FAN1+1
-#define PWM_FAN_THERMO PWM_FAN2+1
-#define NUM_PWM PWM_FAN_THERMO+1
+#define PWM_HEATED_BED    NUM_EXTRUDER
+#define PWM_BOARD_FAN     PWM_HEATED_BED + 1
+#define PWM_FAN1          PWM_BOARD_FAN + 1
+#define PWM_FAN2          PWM_FAN1 + 1
+#define PWM_FAN_THERMO    PWM_FAN2 + 1
+#define NUM_PWM           PWM_FAN_THERMO + 1
 extern uint8_t pwm_pos[NUM_PWM]; // 0-NUM_EXTRUDER = Heater 0-NUM_EXTRUDER of extruder, NUM_EXTRUDER = Heated bed, NUM_EXTRUDER+1 Board fan, NUM_EXTRUDER+2 = Fan
 #if USE_ADVANCE
 #if ENABLE_QUADRATIC_ADVANCE
@@ -956,11 +970,11 @@ extern uint8_t fanKickstart;
 extern uint8_t fan2Kickstart;
 #endif
 
-#if SDSUPPORT
 extern char tempLongFilename[LONG_FILENAME_LENGTH+1];
 extern char fullName[LONG_FILENAME_LENGTH*SD_MAX_FOLDER_DEPTH+SD_MAX_FOLDER_DEPTH+1];
+#if SDSUPPORT
 #define SHORT_FILENAME_LENGTH 14
-#include "SdFat.h"
+#include "src/SdFat/SdFat.h"
 
 enum LsAction {LS_SerialPrint,LS_Count,LS_GetFilename};
 class SDCard

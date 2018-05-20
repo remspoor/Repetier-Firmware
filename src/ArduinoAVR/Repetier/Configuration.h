@@ -868,10 +868,36 @@ on this endstop.
 #define MAX_HARDWARE_ENDSTOP_Y false
 #define MAX_HARDWARE_ENDSTOP_Z true
 
+// If you have a mirrored motor you can put a second endstop to that motor.
+// On homing you would then need to trigge rboth endstops. Each endstop only 
+// stopps one motor, so they are aligned after homing. After homing only the 
+// first endstop gets used.
+
+#define ENDSTOP_PULLUP_X2_MIN false
+#define ENDSTOP_PULLUP_Y2_MIN false
+#define ENDSTOP_PULLUP_Z2_MINMAX false
+#define ENDSTOP_PULLUP_X2_MAX true
+#define ENDSTOP_PULLUP_Y2_MAX true
+
+#define ENDSTOP_X2_MIN_INVERTING true
+#define ENDSTOP_Y2_MIN_INVERTING true
+#define ENDSTOP_X2_MAX_INVERTING true
+#define ENDSTOP_Y2_MAX_INVERTING true
+
+#define MIN_HARDWARE_ENDSTOP_X2 false
+#define MIN_HARDWARE_ENDSTOP_Y2 false
+#define MAX_HARDWARE_ENDSTOP_X2 false
+#define MAX_HARDWARE_ENDSTOP_Y2 false
+#define MINMAX_HARDWARE_ENDSTOP_Z2 false
+
+#define X2_MIN_PIN -1
+#define X2_MAX_PIN -1
+#define Y2_MIN_PIN -1
+#define Y2_MAX_PIN -1
+#define Z2_MINMAX_PIN -1
+
 //If your axes are only moving in one direction, make sure the endstops are connected properly.
 //If your axes move in one direction ONLY when the endstops are triggered, set ENDSTOPS_INVERTING to true here
-
-
 
 //// ADVANCED SETTINGS - to tweak parameters
 
@@ -893,9 +919,14 @@ on this endstop.
 
 // Inverting motor direction. Only in case of pure cartesian printers, this
 // is also the axis you invert!
-#define INVERT_X_DIR true
-#define INVERT_Y_DIR true
-#define INVERT_Z_DIR true
+#define INVERT_X_DIR 1
+#define INVERT_X2_DIR 1
+#define INVERT_Y_DIR 1
+#define INVERT_Y2_DIR 1
+#define INVERT_Z_DIR 1
+#define INVERT_Z2_DIR 1
+#define INVERT_Z3_DIR 1
+#define INVERT_Z4_DIR 1
 
 //// ENDSTOP SETTINGS:
 // Sets direction of endstops when homing; 1=MAX, -1=MIN
@@ -952,6 +983,16 @@ on this endstop.
 #define X_MIN_POS 0
 #define Y_MIN_POS 0
 #define Z_MIN_POS 0
+
+// Park position used when pausing from firmware side
+#if DRIVE_SYSTEM == DELTA
+#define PARK_POSITION_X (0)
+#define PARK_POSITION_Y (70)
+#else 
+#define PARK_POSITION_X (X_MIN_POS)
+#define PARK_POSITION_Y (Y_MIN_POS + Y_MAX_LENGTH)
+#endif
+#define PARK_POSITION_Z_RAISE 10
 
 // ##########################################################################################
 // ##                           Movement settings                                          ##
@@ -1321,6 +1362,11 @@ If you use an ATX power supply you need the power pin to work non inverting. For
 boards you might need to make it inverting.
 */
 #define POWER_INVERTING 0
+
+/** Automatically enable power when temperatures or moves/homing is used. Set only to 1 if
+ *you have a power unit controlled by PS_ON_PIN! */
+#define AUTOMATIC_POWERUP 0
+
 /** What shall the printer do, when it receives an M112 emergency stop signal?
  0 = Disable heaters/motors, wait forever until someone presses reset.
  1 = restart by resetting the AVR controller. The USB connection will not reset if managed by a different chip!
@@ -1402,6 +1448,72 @@ extruder position. In that case you can also have different resolutions for the
 to print an object two times at the speed of one. Works only with dual extruder setup.
 */
 #define FEATURE_DITTO_PRINTING 0
+
+
+// ##########################################################################################
+// ##                        Trinamic TMC2130 driver configuration                         ##
+// ##########################################################################################
+
+/* If you want to use TMC2130 specific features uncomment next line and make sure all
+following settings are correct. 
+You need this library to compile:
+https://github.com/teemuatlut/TMC2130Stepper
+
+*/
+
+// #define DRV_TMC2130
+
+// Uncomment if you use the stall guard for homing. Only for cartesian printers and xy direction
+// #define SENSORLESS_HOMING
+
+// The drivers with set CS pin will be used, all others are normal step/dir/enable drivers
+#define TMC2130_X_CS_PIN -1
+#define TMC2130_Y_CS_PIN -1
+#define TMC2130_Z_CS_PIN -1
+#define TMC2130_EXT0_CS_PIN -1
+#define TMC2130_EXT1_CS_PIN -1
+#define TMC2130_EXT2_CS_PIN -1
+
+// Per-axis current setting in mA { X, Y, Z, E0, E1, E2}
+#define MOTOR_CURRENT {1000,1000,1000,1000,1000,1000}
+
+/**  Global settings - these apply to all configured drivers
+     Per-axis values will override these
+*/
+#define TMC2130_STEALTHCHOP         1  // Enable extremely quiet stepping
+#define TMC2130_INTERPOLATE_256  true  // Enable internal driver microstep interpolation
+#define TMC2130_STALLGUARD          0  // Sensorless homing sensitivity (between -63 and +64)
+
+/** PWM values for chopper tuning
+    only change if you know what you're doing
+*/
+#define TMC2130_PWM_AMPL          255
+#define TMC2130_PWM_GRAD            1
+#define TMC2130_PWM_AUTOSCALE    true
+#define TMC2130_PWM_FREQ            2
+
+/**  Per-axis parameters
+
+  To define different values for certain parameters on each axis,
+  append either _X, _Y, _Z, _EXT0, _EXT1 or _EXT2 
+  to the name of the global parameter.
+
+  Examples for the X axis:
+
+  #define TMC2130_STEALTHCHOP_X         1
+  #define TMC2130_INTERPOLATE_256_X  true
+*/
+
+/** Minimum speeds for stall detection.
+
+  These values may need to be adjusted if SENSORLESS_HOMING is enabled,
+  but endstops trigger prematurely or don't trigger at all. 
+  The exact value is dependent on the duration of one microstep,
+  but good approximations can be determined by experimentation.
+*/
+#define TMC2130_TCOOLTHRS_X 300
+#define TMC2130_TCOOLTHRS_Y 300
+#define TMC2130_TCOOLTHRS_Z 300
 
 /* Servos
 
@@ -1556,7 +1668,7 @@ motorized bed leveling */
  *     and that it is perpendicular to the towers
  *     and that the (0,0) is in center
  * requires z-probe
- * G29 measures the Z offset in matrix NxN points (due to nature of the delta printer, the corners are extrapolated instead of measured)
+ * G33 measures the Z offset in matrix NxN points (due to nature of the delta printer, the corners are extrapolated instead of measured)
  * and compensate the distortion
  * more points means better compensation, but consumes more memory and takes more time
  * DISTORTION_CORRECTION_R is the distance of last row or column from center

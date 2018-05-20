@@ -256,14 +256,72 @@ public:
         if(isCheckEndstops()) {
             Endstops::update();
             if(Endstops::anyEndstopHit()) {
+#if MULTI_XENDSTOP_HOMING
+                {
+                    if(Printer::isHoming()) {
+                        if(isXNegativeMove()) {
+                            if(Endstops::xMin())
+                                Printer::multiXHomeFlags &= ~1;
+                            if(Endstops::x2Min())
+                                Printer::multiXHomeFlags &= ~2;
+                            if(Printer::multiXHomeFlags == 0)
+                                setXMoveFinished();
+                        } else if(isXPositiveMove()) {
+                            if(Endstops::xMax())
+                                Printer::multiXHomeFlags &= ~1;
+                            if(Endstops::x2Max())
+                                Printer::multiXHomeFlags &= ~2;
+                            if(Printer::multiXHomeFlags == 0) {
+                                setXMoveFinished();
+                            }
+                        }
+                    } else {
+                        if(isXNegativeMove() && Endstops::xMin()) {
+                            setXMoveFinished();
+                        } else if(isXPositiveMove() && Endstops::xMax()) {
+                            setXMoveFinished();
+                        }
+                    }
+                }
+#else  // Multi endstop homing
                 if(isXNegativeMove() && Endstops::xMin())
                     setXMoveFinished();
                 else if(isXPositiveMove() && Endstops::xMax())
                     setXMoveFinished();
+#endif
+#if MULTI_YENDSTOP_HOMING
+                {
+                    if(Printer::isHoming()) {
+                        if(isYNegativeMove()) {
+                            if(Endstops::yMin())
+                                Printer::multiYHomeFlags &= ~1;
+                            if(Endstops::y2Min())
+                                Printer::multiYHomeFlags &= ~2;
+                            if(Printer::multiYHomeFlags == 0)
+                                setYMoveFinished();
+                        } else if(isYPositiveMove()) {
+                            if(Endstops::yMax())
+                                Printer::multiYHomeFlags &= ~1;
+                            if(Endstops::y2Max())
+                                Printer::multiYHomeFlags &= ~2;
+                            if(Printer::multiYHomeFlags == 0) {
+                                setYMoveFinished();
+                            }
+                        }
+                    } else {
+                        if(isYNegativeMove() && Endstops::yMin()) {
+                            setYMoveFinished();
+                        } else if(isYPositiveMove() && Endstops::yMax()) {
+                            setYMoveFinished();
+                        }
+                    }
+                }
+#else  // Multi endstop homing
                 if(isYNegativeMove() && Endstops::yMin())
                     setYMoveFinished();
                 else if(isYPositiveMove() && Endstops::yMax())
                     setYMoveFinished();
+#endif
 #if FEATURE_Z_PROBE
                 if(Printer::isZProbingActive() && isZNegativeMove() && Endstops::zProbe()) {
                     setZMoveFinished();
@@ -293,9 +351,13 @@ public:
                             }
                         }
                     } else {
+#if !(Z_MIN_PIN == Z_PROBE_PIN && FEATURE_Z_PROBE)
                         if(isZNegativeMove() && Endstops::zMin()) {
                             setZMoveFinished();
-                        } else if(isZPositiveMove() && Endstops::zMax()) {
+                        } else
+#endif
+						
+						if(isZPositiveMove() && Endstops::zMax()) {
 #if MAX_HARDWARE_ENDSTOP_Z
                             Printer::stepsRemainingAtZHit = stepsRemaining;
 #endif
@@ -303,8 +365,12 @@ public:
                         }
                     }
                 }
-#else
-                    if(isZNegativeMove() && Endstops::zMin()) {
+#else  // Multi endstop homing
+                    if(isZNegativeMove() && Endstops::zMin()
+#if Z_MIN_PIN == Z_PROBE_PIN && FEATURE_Z_PROBE
+						&& Printer::isHoming()
+#endif
+					) {
                         setZMoveFinished();
                     } else if(isZPositiveMove() && Endstops::zMax()) {
 #if MAX_HARDWARE_ENDSTOP_Z
@@ -572,7 +638,7 @@ public:
     }
     // Only called from within interrupts
     static INLINE void removeCurrentLineForbidInterrupt() {
-		nextPlannerIndex(linesPos);
+        nextPlannerIndex(linesPos);
         cur = NULL;
 #if CPU_ARCH == ARCH_ARM
         nlFlag = false;
@@ -583,7 +649,7 @@ public:
             Printer::setMenuMode(MENU_MODE_PRINTING, Printer::isPrinting());
     }
     static INLINE void pushLine() {
-		nextPlannerIndex(linesWritePos);
+        nextPlannerIndex(linesWritePos);
         Printer::setMenuMode(MENU_MODE_PRINTING, true);
         InterruptProtectedBlock noInts;
         linesCount++;

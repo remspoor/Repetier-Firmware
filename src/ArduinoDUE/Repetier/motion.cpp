@@ -27,7 +27,7 @@
 #ifndef STEP_DOUBLER_FREQUENCY
 #error Please add new parameter STEP_DOUBLER_FREQUENCY to your configuration.
 #else
-#if STEP_DOUBLER_FREQUENCY < 10000 || STEP_DOUBLER_FREQUENCY > 20000
+#if STEP_DOUBLER_FREQUENCY < 7000 || STEP_DOUBLER_FREQUENCY > 20000
 #if CPU_ARCH==ARCH_AVR
 #error STEP_DOUBLER_FREQUENCY should be in range 10000-16000.
 #endif
@@ -319,6 +319,7 @@ void PrintLine::queueCartesianSegmentTo(uint8_t check_endstops, uint8_t pathOpti
   @param check_endstops Read end stop during move.
 */
 void PrintLine::queueCartesianMove(uint8_t check_endstops, uint8_t pathOptimize) {
+	ENSURE_POWER
 #if LAZY_DUAL_X_AXIS
     if(Printer::sledParked && (Printer::currentPositionSteps[X_AXIS] != Printer::destinationSteps[X_AXIS] ||
                                Printer::currentPositionSteps[Y_AXIS] != Printer::destinationSteps[Y_AXIS] ||
@@ -728,7 +729,7 @@ void PrintLine::updateTrapezoids() {
 #endif // DRIVE_SYSTEM
 
     if(previous->isEOnlyMove() != act->isEOnlyMove()) {
-        previous->maxJunctionSpeed = act->startSpeed;
+        previous->maxJunctionSpeed = previous->endSpeed; // act->startSpeed; // maybe remove this. Previous should be at minimum and systems have nothing in common
         previous->setEndSpeedFixed(true);
         act->setStartSpeedFixed(true);
         act->updateStepsParameter();
@@ -1054,10 +1055,12 @@ void PrintLine::forwardPlanner(ufast8_t first) {
 
 
 inline float PrintLine::safeSpeed(fast8_t drivingAxis) {
-    float safe(Printer::maxJerk * 0.5);
+	float xyMin = Printer::maxJerk * 0.5;
+	float mz = 0;
+    float safe(xyMin);
 #if DRIVE_SYSTEM != DELTA
     if(isZMove()) {
-        float mz = Printer::maxZJerk * 0.5;
+        mz = Printer::maxZJerk * 0.5;
         if(isXOrYMove()) {
             if(fabs(speedZ) > mz)
                 safe = RMath::min(safe, mz * fullSpeed / fabs(speedZ));
@@ -1073,12 +1076,17 @@ inline float PrintLine::safeSpeed(fast8_t drivingAxis) {
             safe = 0.5 * Extruder::current->maxStartFeedrate; // This is a retraction move
     }
     // Check for minimum speeds needed for numerical robustness
-    /*if(drivingAxis == X_AXIS || drivingAxis == Y_AXIS) // enforce minimum speed for numerical stability of explicit speed integration
-        safe = RMath::max(Printer::minimumSpeed, safe);
+#if DRIVE_SYSTEM == DELTA
+    if(drivingAxis == X_AXIS || drivingAxis == Y_AXIS || drivingAxis == Z_AXIS) // enforce minimum speed for numerical stability of explicit speed integration
+    safe = RMath::max(xyMin, safe);
+#else
+    if(drivingAxis == X_AXIS || drivingAxis == Y_AXIS) // enforce minimum speed for numerical stability of explicit speed integration
+        safe = RMath::max(xyMin, safe);
     else if(drivingAxis == Z_AXIS)
     {
-        safe = RMath::max(Printer::minimumZSpeed, safe);
-    }*/
+        safe = RMath::max(mz, safe);
+    }
+#endif
     return RMath::min(safe, fullSpeed);
 }
 
@@ -1544,11 +1552,14 @@ bool NonlinearSegment::checkEndstops(PrintLine *cur, bool checkall) {
                     }
                 }
             } else {
+#if !(Z_MIN_PIN == Z_PROBE_PIN && FEATURE_Z_PROBE)
                 if(isZNegativeMove() && Endstops::zMin()) {
                     setZMoveFinished();
                     cur->setZMoveFinished();
                     r = 1;
-                } else if(isZPositiveMove() && Endstops::zMax()) {
+                } else 
+#endif
+				if(isZPositiveMove() && Endstops::zMax()) {
                     setZMoveFinished();
                     cur->setZMoveFinished();
                     r = 1;
@@ -1561,7 +1572,11 @@ bool NonlinearSegment::checkEndstops(PrintLine *cur, bool checkall) {
             cur->setZMoveFinished();
             r = 1;
         }
-        if(cur->isZNegativeMove() && Endstops::zMin()) {
+        if(cur->isZNegativeMove() && Endstops::zMin()
+#if Z_MIN_PIN == Z_PROBE_PIN && FEATURE_Z_PROBE
+			&& Printer::isHoming()
+#endif		
+		) {
             setZMoveFinished();
             cur->setZMoveFinished();
             r = 1;
@@ -1854,6 +1869,7 @@ inline void PrintLine::queueEMove(int32_t extrudeDiff, uint8_t check_endstops, u
   @param softEndstop check if we go out of bounds.
 */
 uint8_t PrintLine::queueNonlinearMove(uint8_t check_endstops, uint8_t pathOptimize, uint8_t softEndstop) {
+	ENSURE_POWER
     //if (softEndstop && Printer::destinationSteps[Z_AXIS] < 0) Printer::destinationSteps[Z_AXIS] = 0; // now constrained at entry level including cylinder test
     EVENT_CONTRAIN_DESTINATION_COORDINATES
     int32_t difference[E_AXIS_ARRAY];
@@ -2299,6 +2315,12 @@ int32_t PrintLine::bresenhamStep() { // Version for delta printer
             LaserDriver::changeIntensity(cur->secondSpeed);
         }
 #endif
+#if MULTI_XENDSTOP_HOMING
+		Printer::multiXHomeFlags = MULTI_XENDSTOP_ALL;  // move all x motors until endstop says differently
+#endif
+#if MULTI_YENDSTOP_HOMING
+		Printer::multiYHomeFlags = MULTI_YENDSTOP_ALL;  // move all y motors until endstop says differently
+#endif
 #if MULTI_ZENDSTOP_HOMING
 		Printer::multiZHomeFlags = MULTI_ZENDSTOP_ALL;  // move all z motors until endstop says differently
 #endif
@@ -2448,8 +2470,8 @@ int32_t PrintLine::bresenhamStep() { // Version for delta printer
         if(Printer::vMaxReached > cur->vMax) Printer::vMaxReached = cur->vMax;
         speed_t v = Printer::updateStepsPerTimerCall(Printer::vMaxReached);
         Printer::interval = HAL::CPUDivU2(v);
-        if(Printer::maxInterval < Printer::interval) // fix timing for very slow speeds
-            Printer::interval = Printer::maxInterval;
+        // if(Printer::maxInterval < Printer::interval) // fix timing for very slow speeds
+        //    Printer::interval = Printer::maxInterval;
         Printer::timer += Printer::interval;
         cur->updateAdvanceSteps(Printer::vMaxReached, maxLoops, true);
         Printer::stepNumber += maxLoops; // is only used by moveAccelerating
@@ -2464,8 +2486,8 @@ int32_t PrintLine::bresenhamStep() { // Version for delta printer
         cur->updateAdvanceSteps(v, maxLoops, false);
         v = Printer::updateStepsPerTimerCall(v);
         Printer::interval = HAL::CPUDivU2(v);
-        if(Printer::maxInterval < Printer::interval) // fix timing for very slow speeds
-            Printer::interval = Printer::maxInterval;
+        // if(Printer::maxInterval < Printer::interval) // fix timing for very slow speeds
+        //    Printer::interval = Printer::maxInterval;
         Printer::timer += Printer::interval;
     } else {
         // If we had acceleration, we need to use the latest vMaxReached and interval
@@ -2670,6 +2692,12 @@ int32_t PrintLine::bresenhamStep() { // version for Cartesian printer
             LaserDriver::changeIntensity(cur->secondSpeed);
         }
 #endif
+#if MULTI_XENDSTOP_HOMING
+		Printer::multiXHomeFlags = MULTI_XENDSTOP_ALL;  // move all x motors until endstop says differently
+#endif
+#if MULTI_YENDSTOP_HOMING
+		Printer::multiYHomeFlags = MULTI_YENDSTOP_ALL;  // move all y motors until endstop says differently
+#endif
 #if MULTI_ZENDSTOP_HOMING
         Printer::multiZHomeFlags = MULTI_ZENDSTOP_ALL;  // move all z motors until endstop says differently
 #endif
@@ -2743,8 +2771,8 @@ int32_t PrintLine::bresenhamStep() { // version for Cartesian printer
         if(Printer::vMaxReached > cur->vMax) Printer::vMaxReached = cur->vMax;
         unsigned int v = Printer::updateStepsPerTimerCall(Printer::vMaxReached);
         Printer::interval = HAL::CPUDivU2(v);
-        if(Printer::maxInterval < Printer::interval) // fix timing for very slow speeds
-            Printer::interval = Printer::maxInterval;
+        // if(Printer::maxInterval < Printer::interval) // fix timing for very slow speeds
+        //    Printer::interval = Printer::maxInterval;
         Printer::timer += Printer::interval;
         cur->updateAdvanceSteps(Printer::vMaxReached, max_loops, true);
         Printer::stepNumber += max_loops; // only used for moveAccelerating
@@ -2759,8 +2787,8 @@ int32_t PrintLine::bresenhamStep() { // version for Cartesian printer
         cur->updateAdvanceSteps(v, max_loops, false); // needs original v
         v = Printer::updateStepsPerTimerCall(v);
         Printer::interval = HAL::CPUDivU2(v);
-        if(Printer::maxInterval < Printer::interval) // fix timing for very slow speeds
-            Printer::interval = Printer::maxInterval;
+        // if(Printer::maxInterval < Printer::interval) // fix timing for very slow speeds
+        //    Printer::interval = Printer::maxInterval;
         Printer::timer += Printer::interval;
     } else { // full speed reached
         cur->updateAdvanceSteps((!cur->accelSteps ? cur->vMax : Printer::vMaxReached), 0, true);
